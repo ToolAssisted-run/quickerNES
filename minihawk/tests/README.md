@@ -46,7 +46,7 @@ helper for one-off hidden runs.
 
 ## How a test runs
 
-For each test: launch EmuHawk with `--headless --movie=<test>.tas`, play the
+For each test: launch EmuHawk with `--headless --movie=<test>.chimeraProject`, play the
 movie to its end on a hidden display (no window appears), and dump the final 2KB
 `RAM` domain. Input comes from the **movie**, so the gate exercises the same path
 a user does — the movie session driving the controller chain — and nothing runs
@@ -54,17 +54,25 @@ per frame in script. Up to `--parallel` instances run concurrently, each with
 private config/job files. `--headless` makes any modal dialog log its text and
 exit with code 64 instead of blocking invisibly.
 
-Movies are generated from the `.sol` sequences by `tools/make-movies.sh`, which
-uses the frontend's own `Bk2LogEntryGenerator` against the core's
-`ControllerDefinition` — so the mnemonic layout comes from the code that reads it
-back, not a hand-written guess. **Change the controller declaration in
-waterbox.config and the movies must be regenerated**; forget, and every test
-desyncs at once, which is the intended alarm. Free-set movies are committed, so
-CI needs no conversion step.
+A movie here is a **Chimera project** (`.chimeraProject`): one JSON file holding
+the core pin, the settings, the header metadata and the input log. The project IS
+the movie (chimera's `docs/project.md`), and it is the only movie form Chimera
+reads — the zip the BizHawk lineage carried is gone, and a file that is not a
+project is refused before it is opened.
 
-Ports (Four Score, Arkanoid paddles) travel in the movie's own `SyncSettings`,
-which is where they belong: with the input they apply to, rather than in a config
-file off to the side.
+Movies are generated from the `.sol` sequences by `tools/make-movies.sh`, which
+uses the frontend's own `LogEntryGenerator` against the core's
+`ControllerDefinition` — so the mnemonic layout comes from the code that reads it
+back, not a hand-written guess. That definition is the one the **machine** has,
+not the one the package declares: the ports were read at boot, so a movie carries
+columns for the peripherals its own settings plugged in and no others. **Change
+the controller declaration in waterbox.config, or what a port holds, and the
+movies must be regenerated**; forget, and every test desyncs at once, which is the
+intended alarm. Free-set movies are committed, so CI needs no conversion step.
+
+Ports (Four Score, Arkanoid paddles) travel in the project's own `settings`, which
+is where they belong: with the input they apply to, rather than in a config file
+off to the side.
 
 Things that were required for byte-exact agreement with the native tester, each
 found the hard way:

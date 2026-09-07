@@ -1,4 +1,4 @@
--- miniHawk Level B witness: play a .tas movie to its end and dump the final RAM.
+-- miniHawk Level B witness: play a project to its end and dump the final RAM.
 --
 -- Input comes from the movie, not from this script: the movie session drives the
 -- controller chain exactly as it does for a user pressing Play. Nothing here runs

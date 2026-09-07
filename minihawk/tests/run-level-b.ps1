@@ -1,5 +1,5 @@
 ﻿# miniHawk Level B witness driver.
-# Plays each test's .tas movie through EmuHawk against the WATERBOX package
+# Plays each test's project through EmuHawk against the WATERBOX package
 # - core.wbx driven by miniHawk's one generic adapter - and dumps the final 2KB
 # RAM. In -Record mode the dumps become goldens; otherwise dumps are
 # byte-compared against the stored goldens.
@@ -230,7 +230,7 @@ foreach ($testFile in $tests) {
         [void]$results.Add([pscustomobject]@{ Test = $name; Result = "RECORDED"; Detail = "already present (skipped)" })
         continue
     }
-    $moviePath = Join-Path $moviesDir "$name.tas"
+    $moviePath = Join-Path $moviesDir "$name.chimeraProject"
     if (-not (Test-Path -LiteralPath $moviePath)) {
         [void]$results.Add([pscustomobject]@{ Test = $name; Result = "SKIP"; Detail = "no movie: run tools/make-movies.sh" })
         continue

@@ -1,29 +1,38 @@
-// Converts a quickerNES .sol input sequence into a miniHawk .tas movie.
+// Converts a quickerNES .sol input sequence into a Chimera project (.chimeraProject).
 //
 // The witness used to inject input frame by frame from Lua. A movie is what a
-// user actually plays back, so the gate now exercises that path instead: the
-// movie session drives the controller chain natively and nothing per-frame runs
-// in script.
+// user actually plays back, so the gate exercises that path instead: the movie
+// session drives the controller chain natively and nothing per-frame runs in
+// script. The project IS the movie (chimera's docs/project.md): one JSON file
+// carrying the core pin, the settings, the header metadata and the input log.
+// The zip movie the BizHawk lineage read no longer exists, and Chimera refuses
+// anything that is not a project.
 //
-// The mnemonic layout is NOT hand-written here - Bk2LogEntryGenerator produces
-// it from the core's own ControllerDefinition, which is the same code that reads
-// the movie back. Change waterbox.config's controls and the movies must be
-// regenerated; the goldens will say so loudly.
+// The mnemonic layout is NOT hand-written here - LogEntryGenerator produces it
+// from the core's own ControllerDefinition, which is the same code that reads
+// the movie back. That definition is now narrowed by what the ports actually
+// hold, so the settings this tool records and the columns it writes are one
+// decision: change waterbox.config's controls or the port settings and the
+// movies must be regenerated; the goldens will say so loudly.
 //
-// usage: sol2tas <packageDir> <rom> <test.json> <sol> <out.tas>
+// usage: sol2project <packageDir> <rom> <test.json> <sol> <out.chimeraProject>
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
-using BizHawk.Client.Common;
-using BizHawk.Emulation.Common;
-using BizHawk.Emulation.Common.Waterbox;
+using Chimera.Client.Common;
+using Chimera.Emulation.Common;
+using Chimera.Emulation.Common.Waterbox;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-internal static class Sol2Tas
+internal static class Sol2Project
 {
+	// what the project format calls itself; a reader that finds another version
+	// here is looking at a file this tool did not write
+	private const string ProjectVersion = "Chimera Project File v1.1";
+
 	private static readonly string[] JoypadOrder = { "Up", "Down", "Left", "Right", "Start", "Select", "B", "A" };
 
 	private static string[] SplitFields(string line)
@@ -50,17 +59,11 @@ internal static class Sol2Tas
 		fire = s.Length >= 7 && s[6] == 'F';
 	}
 
-	private static void Put(ZipArchive zip, string name, string content)
-	{
-		var entry = zip.CreateEntry(name, CompressionLevel.Optimal);
-		using (var w = new StreamWriter(entry.Open())) w.Write(content);
-	}
-
 	public static int Main(string[] args)
 	{
 		if (args.Length < 5)
 		{
-			Console.Error.WriteLine("usage: sol2tas <packageDir> <rom> <test.json> <sol> <out.tas>");
+			Console.Error.WriteLine("usage: sol2project <packageDir> <rom> <test.json> <sol> <out.chimeraProject>");
 			return 2;
 		}
 		string pkg = args[0], romPath = args[1], testPath = args[2], solPath = args[3], outPath = args[4];
@@ -69,14 +72,16 @@ internal static class Sol2Tas
 		var c1 = (string)test["Controller 1 Type"] ?? "Joypad";
 		var c2 = (string)test["Controller 2 Type"] ?? "None";
 
-		// The peripheral in each port is a core setting; carrying it in the movie is
+		// The peripheral in each port is a core setting; carrying it in the project is
 		// better than the config side-channel the harness used to write, because it
-		// travels with the input it belongs to.
+		// travels with the input it belongs to. The spellings are waterbox.config's
+		// own enum options - a value the declaration does not offer is not a setting,
+		// it is a typo the core silently replaces with the default.
 		string port1 = "gamepad";
 		if (c1 == "ArkanoidNES") port1 = "arkanoidNES";
 		else if (c1 == "ArkanoidFamicom") port1 = "arkanoidFamicom";
-		else if (c1 == "FourScore1") port1 = "fourscore";
-		string port2 = c2 == "FourScore2" ? "fourscore" : "none";
+		else if (c1 == "FourScore1") port1 = "fourScore";
+		string port2 = c2 == "FourScore2" ? "fourScore" : "none";
 
 		var cfg = WaterboxConfig.FromJson(File.ReadAllText(Path.Combine(pkg, "waterbox.config")));
 		var settings = new WaterboxCoreSettings
@@ -84,7 +89,9 @@ internal static class Sol2Tas
 			Values = new Dictionary<string, object> { { "port1", port1 }, { "port2", port2 } },
 		};
 		var rom = File.ReadAllBytes(romPath);
-		var core = new WaterboxCore(rom, cfg, Path.Combine(pkg, "core.wbx"), settings);
+		var core = new WaterboxCore(rom, romPath, cfg, pkg, settings);
+		// The definition the core hands back is the one the MACHINE has: the ports
+		// were read at boot, so a port holding nothing contributes no columns.
 		var def = core.ControllerDefinition;
 		// the generator needs the per-system mnemonic letters resolved first
 		def.BuildMnemonicsCache(cfg.SystemId);
@@ -125,40 +132,39 @@ internal static class Sol2Tas
 				else if (c2 == "FourScore2") { DecodeJoypad(fields[fi], "P2", controller); DecodeJoypad(fields[fi + 1], "P4", controller); fi += 2; }
 			}
 
-			entries.Add(Bk2LogEntryGenerator.GenerateLogEntry(controller));
+			entries.Add(LogEntryGenerator.GenerateLogEntry(controller));
 		}
 
 		string sha1;
 		using (var sha = SHA1.Create()) sha1 = BitConverter.ToString(sha.ComputeHash(rom)).Replace("-", "");
 
-		var header = new StringBuilder();
-		header.AppendLine($"{HeaderKeys.MovieVersion} BizHawk v2.0.0");
-		header.AppendLine($"{HeaderKeys.Platform} {cfg.SystemId}");
-		// The name the CORE REGISTRY knows this package by (waterbox.config's
-		// coreName, which is what WaterboxCoreFactory reports) - not the adapter's
-		// [PortedCore] attribute, which is "Waterbox" for every waterbox core alike.
-		// Get it wrong and playback stops on a "No such core" dialog.
-		header.AppendLine($"{HeaderKeys.Core} {cfg.CoreName}");
-		header.AppendLine($"{HeaderKeys.GameName} {Path.GetFileNameWithoutExtension(romPath)}");
-		header.AppendLine($"{HeaderKeys.Sha1} {sha1}");
-		header.AppendLine($"{HeaderKeys.Author} miniHawk witness (converted from {Path.GetFileName(solPath)})");
-		header.AppendLine($"{HeaderKeys.Rerecords} 0");
-
 		var log = new StringBuilder();
-		log.AppendLine("[Input]");
-		log.AppendLine($"LogKey:{Bk2LogEntryGenerator.GenerateLogKey(def)}");
-		foreach (var e in entries) log.AppendLine(e);
-		log.AppendLine("[/Input]");
+		log.Append("[Input]\n");
+		log.Append("LogKey:").Append(LogEntryGenerator.GenerateLogKey(def)).Append('\n');
+		foreach (var e in entries) log.Append(e).Append('\n');
+		log.Append("[/Input]\n");
 
-		if (File.Exists(outPath)) File.Delete(outPath);
-		using (var zip = ZipFile.Open(outPath, ZipArchiveMode.Create))
+		// The core pin carries the NAME the core registry knows this package by
+		// (waterbox.config's coreName) and nothing else: a witness movie must
+		// replay against whatever build is under test, so pinning a version or a
+		// package hash here would refuse the very thing the gate exists to check.
+		var project = new JObject
 		{
-			Put(zip, "Header.txt", header.ToString());
-			Put(zip, "Comments.txt", "");
-			Put(zip, "Subtitles.txt", "");
-			Put(zip, "SyncSettings.json", ConfigService.SaveWithType(sync));
-			Put(zip, "Input Log.txt", log.ToString());
-		}
+			["title"] = Path.GetFileNameWithoutExtension(romPath),
+			["description"] = $"miniHawk witness (converted from {Path.GetFileName(solPath)})",
+			["core"] = new JObject { ["name"] = cfg.CoreName, ["version"] = "", ["sha1"] = "" },
+			["rerecords"] = 0,
+			["settings"] = new JObject { ["port1"] = port1, ["port2"] = port2 },
+			["headers"] = new JObject
+			{
+				["MovieVersion"] = ProjectVersion,
+				["Platform"] = cfg.SystemId,
+				["SHA1"] = sha1,
+				["Author"] = "miniHawk witness",
+			},
+			["input"] = log.ToString(),
+		};
+		File.WriteAllText(outPath, project.ToString(Formatting.Indented));
 
 		core.Dispose();
 		Console.WriteLine($"{Path.GetFileName(outPath)}: {entries.Count} frames, port1={port1} port2={port2}");

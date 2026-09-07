@@ -1,11 +1,12 @@
 #!/bin/bash
-# Generates the witness movies: one .tas per test, converted from its .sol input
-# sequence by sol2tas, which builds the mnemonics from the core's own
+# Generates the witness movies: one .chimeraProject per test, converted from its .sol input
+# sequence by sol2project, which builds the mnemonics from the core's own
 # ControllerDefinition.
 #
 # The free-set movies are committed, so CI needs nothing. Regenerate when the
-# controller declaration in waterbox.config changes - the goldens will tell you
-# loudly if you forget, since every movie desyncs at once.
+# controller declaration in waterbox.config changes, or when what a port holds
+# does - the columns a movie carries are the ones the machine has - and the
+# goldens will tell you loudly if you forget, since every movie desyncs at once.
 #
 # Usage:
 #   ./make-movies.sh                        # free-to-distribute set (default)
@@ -42,10 +43,13 @@ fi
 chimera_root="$(cd "$chimera_root" && pwd)"
 dll="$chimera_root/build/dll"
 
-# the built package: core.wbx + waterbox.config, which is where the controller
-# declaration the movies are keyed to comes from
-[ -n "$package_dir" ] || package_dir="$repo_root/waterbox/bin"
-[ -f "$package_dir/core.wbx" ] || { echo "package not built: $package_dir/core.wbx (run waterbox/build-core.sh)" >&2; exit 1; }
+# The built package: core.wbx + waterbox.config, which is where the controller
+# declaration the movies are keyed to comes from. build-package.sh leaves it
+# here on its way into the chimera checkout, so the movies are keyed to the very
+# package the witness replays - and to what its ports report, since the columns a
+# movie carries are the ones the machine actually has.
+[ -n "$package_dir" ] || package_dir="$repo_root/build/package-staging"
+[ -f "$package_dir/core.wbx" ] || { echo "package not built: $package_dir/core.wbx (run waterbox/build-package.sh)" >&2; exit 1; }
 
 # free set: roms that are free to distribute and vendored in suite/roms
 free_set=(
@@ -53,13 +57,12 @@ free_set=(
 	"novaTheSquirrel.anyPercent"
 )
 
-converter="$here/sol2tas.exe"
-if [ ! -f "$converter" ] || [ "$here/sol2tas.cs" -nt "$converter" ]; then
-	echo "building sol2tas..."
-	mcs -langversion:latest -out:"$converter" "$here/sol2tas.cs" \
+converter="$here/sol2project.exe"
+if [ ! -f "$converter" ] || [ "$here/sol2project.cs" -nt "$converter" ]; then
+	echo "building sol2project..."
+	mcs -langversion:latest -out:"$converter" "$here/sol2project.cs" \
 		-r:"$dll/Chimera.Emulation.Common.dll" -r:"$dll/Chimera.Client.Common.dll" \
-		-r:"$dll/Chimera.Common.dll" -r:"$dll/Chimera.NativeInvoke.dll" -r:"$dll/Newtonsoft.Json.dll" \
-		-r:System.IO.Compression.dll -r:System.IO.Compression.FileSystem.dll || exit 1
+		-r:"$dll/Chimera.Common.dll" -r:"$dll/Chimera.NativeInvoke.dll" -r:"$dll/Newtonsoft.Json.dll" || exit 1
 fi
 
 roms_dirs=("$suite/roms" "$HOME/TAS/roms/nes")
@@ -95,10 +98,10 @@ print(t.get('Sequence File', ''))
 		continue
 	fi
 
-	# sol2tas loads the core to read its controller definition, so it needs the
+	# sol2project loads the core to read its controller definition, so it needs the
 	# host library on the search path
 	if LD_LIBRARY_PATH="$dll" MONO_PATH="$dll" mono "$converter" \
-		"$package_dir" "$rom_path" "$test_file" "$suite/$seq_file" "$out_dir/$name.tas" > /dev/null 2>&1; then
+		"$package_dir" "$rom_path" "$test_file" "$suite/$seq_file" "$out_dir/$name.chimeraProject" > /dev/null 2>&1; then
 		printf "  %-36s ok\n" "$name"
 		made=$((made + 1))
 	else

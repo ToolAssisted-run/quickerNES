@@ -1,6 +1,6 @@
 #!/bin/bash
 # miniHawk Level B witness driver — Linux port of run-level-b.ps1.
-# Plays each test's .tas movie through EmuHawk (under Mono) against the WATERBOX
+# Plays each test's project through EmuHawk (under Mono) against the WATERBOX
 # package - core.wbx driven by miniHawk's one generic adapter - and dumps the
 # final 2KB RAM. Input comes from the movie, so the gate exercises the same path
 # a user does; the movies are generated from the .sol sequences by
@@ -155,7 +155,7 @@ io.open(path, "w", encoding="utf-8").write(json.dumps(cfg, indent=2))
 EOF
 fi
 
-# Peripherals (Four Score, Arkanoid paddles) are carried in the movie's own sync
+# Peripherals (Four Score, Arkanoid paddles) are carried in the project's own
 # settings now, so every test runs from the same base config.
 
 rom_path_for() { # "roms/<name>" -> absolute path or empty
@@ -207,7 +207,7 @@ EOF
 		results+=("$name|RECORDED|already present (skipped)")
 		continue
 	fi
-	movie="$harness_dir/movies/$name.tas"
+	movie="$harness_dir/movies/$name.chimeraProject"
 	if [ ! -f "$movie" ]; then
 		results+=("$name|SKIP|no movie: run tools/make-movies.sh")
 		continue
