@@ -10,10 +10,10 @@ name: miniHawk waterbox core
 on:
   pull_request:
     branches: [ "main" ]
-    paths: [ "waterbox/**", "minihawk/**", "source/**", ".github/workflows/minihawk.yml" ]
+    paths: [ "waterbox/**", "minihawk/**", "source/**", "meson.build", "meson_options.txt", ".github/workflows/minihawk.yml" ]
   push:
     branches: [ "main" ]
-    paths: [ "waterbox/**", "minihawk/**", "source/**", ".github/workflows/minihawk.yml" ]
+    paths: [ "waterbox/**", "minihawk/**", "source/**", "meson.build", "meson_options.txt", ".github/workflows/minihawk.yml" ]
   workflow_dispatch:
   schedule:
     # 04:00 UTC. A nightly is published only when main moved since the last one;
