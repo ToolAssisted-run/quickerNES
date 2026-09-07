@@ -84,6 +84,15 @@ jobs:
           sh waterbox/setup-guest.sh -m "$mb"
           ninja -C build/meson-guest core.wbx
 
+      # One leg of the gate - ports:columns, which asks what a recorded frame
+      # looks like - needs chimera-run and an installed package, and this job
+      # deliberately builds neither: it is the half that runs without .NET, Mono
+      # or X, and building the frontend here would cost it that. So the leg
+      # SKIPS, and a skip is not a failure (the gate counts the three outcomes
+      # apart). It is not uncovered either: the witness below replays movies
+      # whose columns are exactly what that leg checks, so a wrong column shape
+      # desyncs there, loudly. Run the leg itself with CHIMERA_ROOT set against a
+      # built checkout.
       - name: Core gate over the free-to-distribute roms
         run: ./waterbox/run-gate.sh
 

@@ -54,7 +54,19 @@ turboDigests() { grep -E '^(frames|tailVideoHash|audioHash|lagFrames|domain\[)';
 
 ok=0
 failed=0
-report() { printf "%-28s %-9s %s\n" "$1" "$2" "$3"; case "$2" in PASS) ok=$((ok+1)) ;; *) failed=$((failed+1)) ;; esac; }
+skipped=0
+# A SKIP is a leg that could not be ASKED, not a leg that answered wrong: the rom
+# is not here, or the tool the leg needs was not built. Counting one as a failure
+# made this gate red on every CI run for eleven passing legs and one honest skip,
+# so the three outcomes are counted apart and only a FAIL decides the exit code.
+report() {
+	printf "%-28s %-9s %s\n" "$1" "$2" "$3"
+	case "$2" in
+		PASS) ok=$((ok + 1)) ;;
+		SKIP) skipped=$((skipped + 1)) ;;
+		*) failed=$((failed + 1)) ;;
+	esac
+}
 
 printf "%-28s %-9s %s\n" "Check" "Result" "Detail"
 printf "%-28s %-9s %s\n" "-----" "------" "------"
@@ -211,6 +223,6 @@ PYSEED
 fi
 
 echo ""
-echo "$ok ok, $failed failed"
+echo "$ok ok, $failed failed, $skipped skipped"
 [ "$failed" -gt 0 ] && exit 1
 exit 0
