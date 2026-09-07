@@ -13,11 +13,11 @@ project('quickerNES','c','cpp',
 if meson.is_cross_build() or get_option('waterbox')
   minibox_dir = get_option('minibox_dir')
   if minibox_dir == ''
-    mb_candidate = meson.current_source_dir() / '../chimera/extern/tools/chimera-common-minibox'
+    mb_candidate = meson.current_source_dir() / '../chimera/extern/chimera-common-minibox'
     if import('fs').is_dir(mb_candidate)
       minibox_dir = mb_candidate
     else
-      error('pass -Dminibox_dir=<miniBox checkout> (or keep one at ../chimera/extern/tools/chimera-common-minibox)')
+      error('pass -Dminibox_dir=<miniBox checkout> (or keep one at ../chimera/extern/chimera-common-minibox)')
     endif
   endif
   dl_dep = meson.get_compiler('c').find_library('dl', required: false)
