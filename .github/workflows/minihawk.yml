@@ -56,31 +56,31 @@ jobs:
 
       - name: Check out miniBox
         working-directory: minihawk-checkout
-        run: git submodule update --init extern/tools/chimera-common-minibox
+        run: git submodule update --init extern/chimera-common-minibox
 
       # The C++ guest toolchain (musl + libstdc++ built for the sandbox) is the
       # slow part of the build and changes only when miniBox does.
       - name: Cache the guest toolchain
         uses: actions/cache@v4
         with:
-          path: minihawk-checkout/extern/tools/chimera-common-minibox/build/meson-cpp
-          key: guest-cpp-${{ runner.os }}-${{ hashFiles('minihawk-checkout/extern/tools/chimera-common-minibox/.git') }}-${{ hashFiles('minihawk-checkout/extern/tools/chimera-common-minibox/meson.build') }}
+          path: minihawk-checkout/extern/chimera-common-minibox/build/meson-cpp
+          key: guest-cpp-${{ runner.os }}-${{ hashFiles('minihawk-checkout/extern/chimera-common-minibox/.git') }}-${{ hashFiles('minihawk-checkout/extern/chimera-common-minibox/meson.build') }}
 
       - name: Build miniBox (host + C++ guest toolchain)
         run: |
-          mb="$PWD/minihawk-checkout/extern/tools/chimera-common-minibox"
+          mb="$PWD/minihawk-checkout/extern/chimera-common-minibox"
           [ -f "$mb/build/meson-cpp/build.ninja" ] || meson setup "$mb/build/meson-cpp" "$mb" -Dguest_cpp=true
           meson compile -C "$mb/build/meson-cpp"
 
       - name: Build the native reference (libquicknes) and the drivers
         run: |
-          mb="$PWD/minihawk-checkout/extern/tools/chimera-common-minibox"
+          mb="$PWD/minihawk-checkout/extern/chimera-common-minibox"
           meson setup build/meson-native -Dwaterbox=true "-Dminibox_dir=$mb"
           ninja -C build/meson-native
 
       - name: Build the waterbox core
         run: |
-          mb="$PWD/minihawk-checkout/extern/tools/chimera-common-minibox"
+          mb="$PWD/minihawk-checkout/extern/chimera-common-minibox"
           sh waterbox/setup-guest.sh -m "$mb"
           ninja -C build/meson-guest core.wbx
 
@@ -146,12 +146,12 @@ jobs:
       - name: Cache the guest toolchain
         uses: actions/cache@v4
         with:
-          path: minihawk-checkout/extern/tools/chimera-common-minibox/build/meson-cpp
-          key: guest-cpp-${{ runner.os }}-${{ hashFiles('minihawk-checkout/extern/tools/chimera-common-minibox/.git') }}-${{ hashFiles('minihawk-checkout/extern/tools/chimera-common-minibox/meson.build') }}
+          path: minihawk-checkout/extern/chimera-common-minibox/build/meson-cpp
+          key: guest-cpp-${{ runner.os }}-${{ hashFiles('minihawk-checkout/extern/chimera-common-minibox/.git') }}-${{ hashFiles('minihawk-checkout/extern/chimera-common-minibox/meson.build') }}
 
       - name: Build miniBox (host + C++ guest toolchain)
         run: |
-          mb="$PWD/minihawk-checkout/extern/tools/chimera-common-minibox"
+          mb="$PWD/minihawk-checkout/extern/chimera-common-minibox"
           [ -f "$mb/build/meson-cpp/build.ninja" ] || meson setup "$mb/build/meson-cpp" "$mb" -Dguest_cpp=true
           meson compile -C "$mb/build/meson-cpp"
 

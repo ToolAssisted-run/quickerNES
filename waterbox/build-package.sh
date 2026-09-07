@@ -33,7 +33,7 @@ minihawk_root="$(cd "$minihawk_root" && pwd)"
 
 # miniBox lives in the miniHawk checkout as a submodule; the guest toolchain
 # (musl + libstdc++ for the C++ guest) is part of its meson graph.
-[ -n "$mb" ] || mb="$minihawk_root/extern/tools/chimera-common-minibox"
+[ -n "$mb" ] || mb="$minihawk_root/extern/chimera-common-minibox"
 mbuild="$mb/build/meson-cpp"
 [ -f "$mbuild/build.ninja" ] || meson setup "$mbuild" "$mb" -Dguest_cpp=true
 ninja -C "$mbuild"

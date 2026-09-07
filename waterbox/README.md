@@ -39,7 +39,7 @@ native library in a package; the retired format that had those is described in
 ```
 
 The C++ guest toolchain (musl + libstdc++ built for the sandbox) comes from the
-miniBox checkout inside miniHawk (`extern/tools/chimera-common-minibox`); `build-package.sh`
+miniBox checkout inside miniHawk (`extern/chimera-common-minibox`); `build-package.sh`
 configures and builds it on demand.
 
 ## Gates
