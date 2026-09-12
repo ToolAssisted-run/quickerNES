@@ -26,8 +26,16 @@ on:
     # the reusable workflow checks, so an unchanged core costs one idle run.
     - cron: '0 4 * * *'
 
+# Keyed by the EVENT as well as the ref. The nightly schedule and a push to
+# main are the same workflow on the same ref, so without the event in the key
+# whichever starts second cancels the first - and because the publish depends
+# on the gate that was cancelled, the release is skipped with nothing anywhere
+# reporting a failure. They collide at all because GitHub runs these crons
+# hours late: this one asks for 04:00 and starts around 08:30. A push still
+# supersedes an older push on the same ref, which is what cancel-in-progress
+# is for.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 env:
